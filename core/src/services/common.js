@@ -61,17 +61,17 @@ const ITEM_NAMES = {
 function getRewardSummary(items) {
     const list = Array.isArray(items) ? items : [];
     const summary = [];
-    
+
     for (const it of list) {
         const id = toNum(it.id);
         const count = toNum(it.count);
-        
+
         if (count <= 0) continue;
-        
+
         const itemName = ITEM_NAMES[id] || `物品${id}`;
         summary.push(`${itemName}${count}`);
     }
-    
+
     return summary.join('/');
 }
 
@@ -88,13 +88,13 @@ function getDetailedRewardSummary(items) {
         coupon: 0,
         items: [],
     };
-    
+
     for (const it of list) {
         const id = toNum(it.id);
         const count = toNum(it.count);
-        
+
         if (count <= 0) continue;
-        
+
         if (id === 1 || id === 1001) {
             result.gold += count;
         } else if (id === 2 || id === 1101) {
@@ -105,7 +105,7 @@ function getDetailedRewardSummary(items) {
             result.items.push({ id, count });
         }
     }
-    
+
     return result;
 }
 
@@ -118,14 +118,13 @@ function getDetailedRewardSummary(items) {
  */
 function isAlreadyClaimedError(error) {
     const msg = String(error && (error.message) || '');
-    return msg.includes('code=1009001') || 
-           msg.includes('code=1018005') ||
-           msg.includes('已经领取') || 
-           msg.includes('已领取') ||
-           msg.includes('今日已领取') ||
-           msg.includes('今日参与次数已达上限') ||
-           msg.includes('次数已达上限') ||
-           msg.includes('已达上限');
+    return msg.includes('code=1009001') ||
+        msg.includes('code=1018005') ||
+        msg.includes('已经领取') ||
+        msg.includes('已领取') ||
+        msg.includes('活动未解锁') ||
+        msg.includes('次数已达上限') ||
+        msg.includes('已达上限');
 }
 
 /**
@@ -135,10 +134,10 @@ function isAlreadyClaimedError(error) {
  */
 function isInsufficientBalanceError(error) {
     const msg = String((error && (error.message || error)) || '');
-    return msg.includes('余额不足') || 
-           msg.includes('点券不足') || 
-           msg.includes('金币不足') ||
-           msg.includes('code=1000019');
+    return msg.includes('余额不足') ||
+        msg.includes('点券不足') ||
+        msg.includes('金币不足') ||
+        msg.includes('code=1000019');
 }
 
 /**
@@ -148,8 +147,8 @@ function isInsufficientBalanceError(error) {
  */
 function isParamError(error) {
     const msg = String((error && (error.message || error)) || '');
-    return msg.includes('code=1000020') || 
-           msg.includes('请求参数错误');
+    return msg.includes('code=1000020') ||
+        msg.includes('请求参数错误');
 }
 
 // ============ Cooldown 管理 ============
@@ -161,10 +160,10 @@ function isParamError(error) {
  */
 function createDailyCooldown(options = {}) {
     const { cooldownMs = 10 * 60 * 1000 } = options;
-    
+
     let lastCheckAt = 0;
     let lastDateKey = '';
-    
+
     return {
         /**
          * 检查是否可以执行
@@ -174,19 +173,19 @@ function createDailyCooldown(options = {}) {
         canRun(force = false) {
             const now = Date.now();
             const currentKey = getDateKey();
-            
+
             // 新的一天，可以执行
             if (currentKey !== lastDateKey) return true;
-            
+
             // force 强制执行：仅在没有在同一天检查过的情况下执行
             if (force && lastCheckAt === 0) return true;
-            
+
             // 超过冷却时间，可以执行
             if (now - lastCheckAt >= cooldownMs) return true;
-            
+
             return false;
         },
-        
+
         /**
          * 标记已执行（包含日期检查，自动跨日重置）
          */
@@ -199,7 +198,7 @@ function createDailyCooldown(options = {}) {
             lastCheckAt = Date.now();
             lastDateKey = currentKey;
         },
-        
+
         /**
          * 获取状态
          */
@@ -211,7 +210,7 @@ function createDailyCooldown(options = {}) {
                 currentKey: getDateKey(),
             };
         },
-        
+
         /**
          * 重置
          */
@@ -219,7 +218,7 @@ function createDailyCooldown(options = {}) {
             lastCheckAt = 0;
             lastDateKey = '';
         },
-        
+
         /**
          * 是否已完成今日
          */
@@ -235,15 +234,15 @@ function createDailyCooldown(options = {}) {
  */
 function createDailyTaskManager(options = {}) {
     const { cooldownMs = 10 * 60 * 1000 } = options;
-    
+
     let lastCheckAt = 0;
     let lastDateKey = '';
-    
+
     const reset = () => {
         lastCheckAt = 0;
         lastDateKey = '';
     };
-    
+
     const manager = {
         /**
          * 检查是否可以执行
@@ -251,7 +250,7 @@ function createDailyTaskManager(options = {}) {
         canRun(force = false) {
             const now = Date.now();
             const currentKey = getDateKey();
-            
+
             if (force) return true;
             // 新的一天，重置状态
             if (currentKey !== lastDateKey) {
@@ -260,10 +259,10 @@ function createDailyTaskManager(options = {}) {
             }
             // 超过冷却时间，可以执行
             if (now - lastCheckAt >= cooldownMs) return true;
-            
+
             return false;
         },
-        
+
         /**
          * 标记已完成今日
          */
@@ -271,7 +270,7 @@ function createDailyTaskManager(options = {}) {
             lastCheckAt = Date.now();
             lastDateKey = getDateKey();
         },
-        
+
         /**
          * 标记已检查（即使没有奖励）
          */
@@ -279,14 +278,14 @@ function createDailyTaskManager(options = {}) {
             lastCheckAt = Date.now();
             lastDateKey = getDateKey();
         },
-        
+
         /**
          * 是否已完成今日
          */
         isDoneToday() {
             return lastDateKey === getDateKey();
         },
-        
+
         /**
          * 获取状态
          */
@@ -299,13 +298,13 @@ function createDailyTaskManager(options = {}) {
                 currentKey: getDateKey(),
             };
         },
-        
+
         /**
          * 重置
          */
         reset,
     };
-    
+
     return manager;
 }
 
@@ -321,7 +320,7 @@ function createDailyTaskManager(options = {}) {
 function withTimeout(promise, ms, errorMessage = 'Operation timeout') {
     return Promise.race([
         promise,
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
             setTimeout(() => reject(new Error(errorMessage)), ms)
         )
     ]);
@@ -342,24 +341,24 @@ async function withRetry(fn, options = {}) {
         retryDelay = 1000,
         shouldRetry = (_error) => true,
     } = options;
-    
+
     let lastError;
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             return await fn();
         } catch (error) {
             lastError = error;
-            
+
             if (attempt < maxRetries && shouldRetry(error)) {
                 await new Promise(r => setTimeout(r, retryDelay * (attempt + 1)));
                 continue;
             }
-            
+
             throw error;
         }
     }
-    
+
     throw lastError;
 }
 
@@ -373,23 +372,23 @@ function createRateLimiter(maxPerSecond = 10) {
     let tokens = maxPerSecond;
     let lastRefill = Date.now();
     const refillAmount = maxPerSecond;
-    
+
     return {
         async acquire() {
             const now = Date.now();
             const elapsed = now - lastRefill;
-            
+
             // 每秒填充
             tokens = Math.min(refillAmount, tokens + (elapsed / 1000) * refillAmount);
             lastRefill = now;
-            
+
             if (tokens < 1) {
                 await new Promise(r => setTimeout(r, 1000 / refillAmount));
                 tokens = 0;
             } else {
                 tokens -= 1;
             }
-            
+
             return true;
         },
     };
@@ -406,7 +405,7 @@ function createRateLimiter(maxPerSecond = 10) {
 function deepMerge(target, ...sources) {
     if (!sources.length) return target;
     const source = sources.shift();
-    
+
     if (isObject(target) && isObject(source)) {
         for (const key in source) {
             if (isObject(source[key])) {
@@ -417,7 +416,7 @@ function deepMerge(target, ...sources) {
             }
         }
     }
-    
+
     return deepMerge(target, ...sources);
 }
 
@@ -435,12 +434,12 @@ function isObject(item) {
 function get(obj, path, defaultValue = undefined) {
     const keys = path.split('.');
     let result = obj;
-    
+
     for (const key of keys) {
         if (result == null) return defaultValue;
         result = result[key];
     }
-    
+
     return result !== undefined ? result : defaultValue;
 }
 
@@ -454,12 +453,12 @@ function set(obj, path, value) {
     const keys = path.split('.');
     const lastKey = keys.pop();
     let current = obj;
-    
+
     for (const key of keys) {
         if (!current[key]) current[key] = {};
         current = current[key];
     }
-    
+
     current[lastKey] = value;
 }
 
@@ -470,27 +469,27 @@ module.exports = {
     getDateKey,
     getServerDateKey,
     isSameDay,
-    
+
     // 奖励
     getRewardSummary,
     getDetailedRewardSummary,
-    
+
     // 错误判断
     isAlreadyClaimedError,
     isInsufficientBalanceError,
     isParamError,
-    
+
     // Cooldown
     createDailyCooldown,
     createDailyTaskManager,
-    
+
     // 异步
     withTimeout,
     withRetry,
-    
+
     // 限流
     createRateLimiter,
-    
+
     // 对象
     deepMerge,
     get,
