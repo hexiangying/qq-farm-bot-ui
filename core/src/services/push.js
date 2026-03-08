@@ -69,7 +69,7 @@ async function sendPushooMessage(payload = {}) {
  */
 function _recursiveReplace(obj, title, content) {
     if (typeof obj === 'string') {
-        return obj.replace(/{{title}}/g, title).replace(/{{content}}/g, content);
+        return obj.replace(/\{\{title\}\}/g, title).replace(/\{\{content\}\}/g, content);
     }
     if (Array.isArray(obj)) {
         return obj.map(item => _recursiveReplace(item, title, content));
